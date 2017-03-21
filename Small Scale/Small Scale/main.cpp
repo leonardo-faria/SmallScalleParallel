@@ -18,11 +18,11 @@ void readParameters(int n, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-	if (argc != 4) {
+	if (argc != 5) {
 		std::cout << "Incorrect number arguments.\nsmallscale ( -dir <dir> ) | ( -f <filename> )  -o <output>" << std::endl;
 	}
-	readParameters(0, argv);
-	readParameters(2, argv);
+	readParameters(1, argv);
+	readParameters(3, argv);
 
 
 
