@@ -1,4 +1,7 @@
 #include <iostream>
+#include "cuda_matrixvector.h"
+#include "openmp_matrixvector.h"
+
 
 /*
 smallscale ( -dir <dir> ) | ( -f <filename> )  -o <output>
