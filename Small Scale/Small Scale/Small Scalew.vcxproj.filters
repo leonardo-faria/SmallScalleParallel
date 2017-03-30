@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="matrix.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="mmio.c">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="openmp_matrixvector.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="serial_matrixvector.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="mmio.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="matrix.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="openmp_matrixvector.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="serial_matrixvector.h">
+      <Filter>headers</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_matrixvector.cuh">
+      <Filter>cuda</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="cuda">
+      <UniqueIdentifier>{28fbe599-44d4-4ef5-9da3-6c349b33dfb9}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{b8540338-da50-4ae2-913c-da483dafc145}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="headers">
+      <UniqueIdentifier>{a1980b77-52ca-4e6c-8231-62f89b0e3d16}</UniqueIdentifier>
+      <Extensions>*.h</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="cuda_matrixvector.cu">
+      <Filter>cuda</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>

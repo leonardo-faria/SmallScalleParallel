@@ -252,3 +252,4 @@ paket-files/
 *.sln.iml
 *.vcxproj
 Small Scale/Small Scale.sln
+*.mtx
