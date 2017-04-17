@@ -2,5 +2,5 @@
 #include <omp.h>
 #include "matrix.h"
 
-void omp_csr_matrixvector(csr_matrix matrix,double* x, double* y);
-void omp_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y);
+double omp_csr_matrixvector(csr_matrix matrix,double* x, double* y, int omp_threads);
+double omp_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y, int omp_threads);

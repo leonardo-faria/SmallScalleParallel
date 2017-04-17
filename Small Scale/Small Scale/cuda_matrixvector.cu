@@ -57,7 +57,7 @@ __global__ void device_cuda_ellpack_matrixvector(int num_rows,int  maxnzr, int* 
 
 }
 
-__host__ void cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
+__host__ float cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -85,7 +85,6 @@ __host__ void cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 	cudaEventSynchronize(stop);
 	float time;
 	cudaEventElapsedTime(&time, start, stop);
-	std::cout << "Real Cuda time:" << time * 1000 << "\n"; // Very accurate
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
@@ -97,9 +96,10 @@ __host__ void cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 	cudaFree(d_as);
 	cudaFree(d_y);
 	cudaFree(d_x);
+	return time*1000;
 }
 
-__host__ void cuda_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y) {
+__host__ float cuda_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y) {
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -124,7 +124,6 @@ __host__ void cuda_ellpack_matrixvector(ellpack_matrix matrix, double* x, double
 	cudaEventSynchronize(stop);
 	float time;
 	cudaEventElapsedTime(&time, start, stop);
-	std::cout << "Real Cuda time:" << time * 1000 << "\n"; // Very accurate
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
@@ -135,6 +134,7 @@ __host__ void cuda_ellpack_matrixvector(ellpack_matrix matrix, double* x, double
 	cudaFree(d_as);
 	cudaFree(d_y);
 	cudaFree(d_x);
+	return time*1000;
 }
 
 /*

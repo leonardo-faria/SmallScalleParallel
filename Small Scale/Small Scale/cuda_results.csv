@@ -1,0 +1,2 @@
+Matrix,nonzeros,collumns,rows,csr GFLOPS,ell GFLOPS,
+olm1000,3996,1000,1000,59.7645,61.2838,

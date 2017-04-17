@@ -1,8 +1,8 @@
 #include "openmp_matrixvector.h"
 
-void omp_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
-
-#pragma omp parallel num_threads(8)
+double omp_csr_matrixvector(csr_matrix matrix, double* x, double* y,int omp_threads) {
+	double time = omp_get_wtime();
+#pragma omp parallel num_threads(omp_threads)
 	{
 #pragma omp for schedule(dynamic)
 		for (int i = 0; i < matrix.rows; i++) {
@@ -12,11 +12,13 @@ void omp_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 			y[i] = t;
 		}
 	}
+	return (omp_get_wtime()-time)*1000000;
 }
 
-void omp_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y) {
+double omp_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y, int omp_threads) {
+	double time = omp_get_wtime();
 
-#pragma omp parallel num_threads(8)
+#pragma omp parallel num_threads(omp_threads)
 	{
 #pragma omp for schedule(dynamic)
 		for (int i = 0; i < matrix.rows; i++) {
@@ -27,4 +29,5 @@ void omp_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y) {
 			y[i] = t;
 		}
 	}
+	return (omp_get_wtime() - time) * 1000000;
 }
