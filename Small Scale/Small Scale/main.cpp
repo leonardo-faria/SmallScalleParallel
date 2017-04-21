@@ -190,7 +190,6 @@ int main(int argc, char* argv[]) {
 	serial_results.close();
 	omp_results.close();
 	cuda_results.close();
-	results_results.close();
 	int a;
 	scanf("%d", &a);
 }
