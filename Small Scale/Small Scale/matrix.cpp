@@ -93,15 +93,15 @@ matrix::matrix(std::string filename) {
 	if ((f = fopen(filename.c_str(), "r")) == NULL)
 		throw std::exception(((std::string) ("Unable to open file " + filename)).c_str());
 	if (mm_read_banner(f, &matcode) != 0) {
-		throw std::exception("Could not process Matrix Market banner.\n");
+		throw std::runtime_error("Could not process Matrix Market banner.\n");
 	}
 	if (mm_is_complex(matcode) && mm_is_matrix(matcode) &&
 		mm_is_sparse(matcode)) {
-		throw std::exception(((std::string) ("Sorry, this application does not support Market Market type: [" + (std::string) mm_typecode_to_str(matcode) + "%s]\n")).c_str());
+		throw std::runtime_error(((std::string) ("Sorry, this application does not support Market Market type: [" + (std::string) mm_typecode_to_str(matcode) + "%s]\n")).c_str());
 		exit(1);
 	}
 	if ((ret_code = mm_read_mtx_crd_size(f, &rows, &collumns, &nonzeros)) != 0)
-		throw std::exception("Unable to read matrix crd size");
+		throw std::runtime_error("Unable to read matrix crd size");
 	//irp = std::vector<int>((int *)malloc(nonzeros * sizeof(int)), nonzeros);
 	coo_irp = std::vector<int>();
 	coo_ja = std::vector<int>();
