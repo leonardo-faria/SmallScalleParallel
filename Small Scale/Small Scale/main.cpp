@@ -7,6 +7,7 @@
 #include <math.h>
 #include <time.h>
 #include <sstream> 
+#include <stdlib.h>
 
 
 /*
