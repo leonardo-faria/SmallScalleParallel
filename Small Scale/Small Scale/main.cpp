@@ -41,11 +41,21 @@ const int MAX_OMP_THREADS = omp_get_max_threads();
 std::ofstream serial_results;
 std::ofstream omp_results;
 std::ofstream cuda_results;
-bool dif(double n1, double n2) {
-	return abs(n1 - n2) > abs(n1 / 100000);
+
+
+void error(double* a1, double* a2, double size, double& max, double& total) {
+	double temp_max = 0;
+	double temp_total = 0;
+	double error;
+	for (size_t i = 0; i < size; i++) {
+		error = abs((a1[i] - a2[i]));
+		if (temp_max < error)
+			temp_max = error;
+		temp_total += error;
+	}
+	max += temp_max;
+	total += temp_total;
 }
-
-
 
 void perform_test(std::string filename, int maxtries) {
 
@@ -56,31 +66,47 @@ void perform_test(std::string filename, int maxtries) {
 	csr_matrix csr("../matrices/" + filename);
 	ellpack_matrix ell("../matrices/" + filename);
 	serial_results << csr.nonzeros << "," << csr.collumns << "," << csr.rows << ",";
-	omp_results<< MAX_OMP_THREADS << "," << csr.nonzeros << "," << csr.collumns << "," << csr.rows << ",";
+	omp_results << MAX_OMP_THREADS << "," << csr.nonzeros << "," << csr.collumns << "," << csr.rows << ",";
 	cuda_results << csr.nonzeros << "," << csr.collumns << "," << csr.rows << ",";
 
 	double sercsr_time = 0;
 	double serell_time = 0;
+	double ser_total_error = 0;
+	double ser_max_error = 0;
+
 	std::vector<double> openmpcsr_time;
-	std::vector<double>  openmpell_time;
+	std::vector<double> openmpell_time;
+	std::vector<double> openmpcsr_avg_error;
+	std::vector<double> openmpell_avg_error;
+	std::vector<double> openmpcsr_max_error;
+	std::vector<double> openmpell_max_error;
 	for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++) {
 		openmpcsr_time.push_back(0);
 		openmpell_time.push_back(0);
+		openmpcsr_avg_error.push_back(0);
+		openmpell_avg_error.push_back(0);
+		openmpcsr_max_error.push_back(0);
+		openmpell_max_error.push_back(0);
 	}
+
 	double cudacsr_time = 0;
 	double cudaell_time = 0;
-
+	double cudacsr_total_error = 0;
+	double cudaell_total_error = 0;
+	double cudacsr_max_error = 0;
+	double cudaell_max_error = 0;
 	for (size_t tries = 0; tries < maxtries; tries++) {
 		double *x;
 		x = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_ser_csr = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_ser_ell = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_omp_csr = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_omp_ell = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_cuda_csr = (double*)malloc(sizeof(double)*csr.collumns);
-		double *y_cuda_ell = (double*)malloc(sizeof(double)*csr.collumns);
+		double *y_ser_csr = (double*)malloc(sizeof(double)*csr.rows);
+		double *y_ser_ell = (double*)malloc(sizeof(double)*csr.rows);
+		double *y_omp_csr = (double*)malloc(sizeof(double)*csr.rows);
+		double *y_omp_ell = (double*)malloc(sizeof(double)*csr.rows);
+		double *y_cuda_csr = (double*)malloc(sizeof(double)*csr.rows);
+		double *y_cuda_ell = (double*)malloc(sizeof(double)*csr.rows);
 		for (size_t i = 0; i < csr.collumns; i++) {
-			x[i] = i + 1;
+			x[i] = 1;
+		}	for (size_t i = 0; i < csr.rows; i++) {
 			y_ser_csr[i] = 0;
 			y_ser_ell[i] = 0;
 			y_omp_csr[i] = 0;
@@ -88,33 +114,23 @@ void perform_test(std::string filename, int maxtries) {
 			y_cuda_csr[i] = 0;
 			y_cuda_ell[i] = 0;
 		}
-		
+
 		sercsr_time += csr_matrixvector(csr, x, y_ser_csr);
 		serell_time += ellpack_matrixvector(ell, x, y_ser_ell);
-
+		error(y_ser_ell, y_ser_csr, csr.collumns, ser_max_error, ser_total_error);
 		for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++) {
-			openmpcsr_time[omp_threads] += omp_csr_matrixvector(csr, x, y_omp_csr,omp_threads+1);
-			openmpell_time[omp_threads] += omp_ellpack_matrixvector(ell, x, y_omp_ell, omp_threads+1);
-		}
+			openmpcsr_time[omp_threads] += omp_csr_matrixvector(csr, x, y_omp_csr, omp_threads + 1);
+			openmpell_time[omp_threads] += omp_ellpack_matrixvector(ell, x, y_omp_ell, omp_threads + 1);
 
+			error(y_omp_csr, y_ser_csr, csr.collumns, openmpcsr_max_error[omp_threads], openmpcsr_avg_error[omp_threads]);
+			error(y_omp_ell, y_ser_ell, csr.collumns, openmpell_max_error[omp_threads], openmpell_avg_error[omp_threads]);
+		}
 		cudacsr_time += cuda_csr_matrixvector(csr, x, y_cuda_csr);
 		cudaell_time += cuda_ellpack_matrixvector(ell, x, y_cuda_ell);
+		error(y_cuda_csr, y_ser_csr, csr.collumns, cudacsr_max_error, cudacsr_total_error);
+		error(y_cuda_ell, y_ser_ell, csr.collumns, cudaell_max_error, cudaell_total_error);
+		
 
-
-
-		for (size_t i = 0; i < csr.collumns; i++) {
-			if (dif(y_ser_csr[i], y_ser_ell[i]))
-				std::cout << "fds2\n";
-			if (dif(y_ser_csr[i], y_omp_csr[i]))
-				std::cout << "fds3\n";
-			if (dif(y_ser_csr[i], y_omp_ell[i]))
-				std::cout << "fds4\n";
-			if (dif(y_ser_csr[i], y_cuda_csr[i]))
-				std::cout << "fds5\n";
-			if (dif(y_ser_csr[i], y_cuda_ell[i]))
-				std::cout << "fds6\n";
-
-		}
 		delete[] y_ser_csr;
 		delete[] y_ser_ell;
 		delete[] y_omp_csr;
@@ -124,71 +140,57 @@ void perform_test(std::string filename, int maxtries) {
 		delete[] x;
 	}
 
-	serial_results << ((csr.nonzeros*2.0) / (sercsr_time / ((double)maxtries))) << "," << ((csr.nonzeros*2.0) / (serell_time / ((double)maxtries))) << ",";
-
+	serial_results << ((csr.nonzeros*2.0) / (sercsr_time / ((double)maxtries))) << "," << ((csr.nonzeros*2.0) / (serell_time / ((double)maxtries))) << "," << (ser_max_error / ((double)maxtries)) << "," << (ser_total_error / ((double)maxtries)) << ",";
 
 	for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++)
-		omp_results << ((csr.nonzeros*2.0) / (openmpcsr_time[omp_threads] / ((double)maxtries))) << ",";	
+		omp_results << ((csr.nonzeros*2.0) / (openmpcsr_time[omp_threads] / ((double)maxtries))) << ",";
 	for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++)
 		omp_results << ((csr.nonzeros*2.0) / (openmpell_time[omp_threads] / ((double)maxtries))) << ",";
-	
-	cuda_results << ((csr.nonzeros*2.0) / (cudacsr_time / ((double)maxtries))) << "," << ((csr.nonzeros*2.0) / (cudaell_time / ((double)maxtries))) << ",";
+	for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++)
+		omp_results << (openmpcsr_max_error[omp_threads] / ((double)maxtries)) << "," << (openmpcsr_avg_error[omp_threads] / ((double)maxtries)) << ",";
+	for (int omp_threads = 0; omp_threads < MAX_OMP_THREADS; omp_threads++)
+		omp_results << (openmpcsr_max_error[omp_threads] / ((double)maxtries)) << "," << (openmpell_avg_error[omp_threads] / ((double)maxtries)) << ",";
+	cuda_results << ((csr.nonzeros*2.0) / (cudacsr_time / ((double)maxtries))) << ",";
+	cuda_results << ((csr.nonzeros*2.0) / (cudaell_time / ((double)maxtries))) << ",";
+	cuda_results << (cudacsr_max_error / ((double)maxtries)) << "," << (cudacsr_total_error / ((double)maxtries)) << ",";
+	cuda_results << (cudaell_max_error / ((double)maxtries)) << "," << (cudaell_total_error / ((double)maxtries)) << ",";
 
 	serial_results << "\n";
 	omp_results << "\n";
 	cuda_results << "\n";
 }
 
-bool has_mtx_extension(char const *name) {
-	size_t len = strlen(name);
-	return len > 4 && strcmp(name + len - 4, ".mtx") == 0;
-}
-
-void test_folder(std::string folder) {
-	serial_results.open(folder+"serial_results.csv");
-	omp_results.open(folder + "omp_results.csv");
-	cuda_results.open(folder + "cuda_results.csv");
-
-	serial_results << "Matrix,nonzeros,collumns,rows,csr,ell,\n";
-
-	omp_results << "Matrix,Max threads,nonzeros,collumns,rows,";
-	for (int i = 1; i <= MAX_OMP_THREADS; i++)
-		omp_results << "(" << i << ") csr,";
-	for (int i = 1; i <= MAX_OMP_THREADS; i++)
-		omp_results << "(" << i << ") ell,";
-	omp_results << "\n";
-
-	cuda_results << "Matrix,nonzeros,collumns,rows,csr,ell,\n";
 
 
-
-	serial_results.close();
-	omp_results.close();
-	cuda_results.close();
-}
 
 int main(int argc, char* argv[]) {
 
 	serial_results.open("serial_results.csv");
 	omp_results.open("omp_results.csv");
 	cuda_results.open("cuda_results.csv");
-	
-	serial_results << "Matrix,nonzeros,collumns,rows,csr,ell,\n";
-	
+
+	serial_results << "Matrix,nonzeros,collumns,rows,csr,ell,Max error,Total error\n";
+
 	omp_results << "Matrix,Max threads,nonzeros,collumns,rows,";
 	for (int i = 1; i <= MAX_OMP_THREADS; i++)
 		omp_results << "(" << i << ") csr,";
 	for (int i = 1; i <= MAX_OMP_THREADS; i++)
 		omp_results << "(" << i << ") ell,";
-	omp_results << "\n";
-	
-	cuda_results << "Matrix,nonzeros,collumns,rows,csr,ell,\n";
+	for (int i = 1; i <= MAX_OMP_THREADS; i++)
+		omp_results << " (" << i << ") Max error csr, (" << i << ")Total error csr, ";
+	for (int i = 1; i <= MAX_OMP_THREADS; i++)
+		omp_results << " (" << i << ") Max error ell, (" << i << ")Total error ell, ";
 
-	perform_test("olm1000.mtx", 10);
+	omp_results << "\n";
+
+	cuda_results << "Matrix,nonzeros,collumns,rows,csr,ell,Max error csr,Total error csr,Max error ell,Total error ell,\n";
+
+	perform_test("cage4.mtx", 1);
 
 	serial_results.close();
 	omp_results.close();
 	cuda_results.close();
+	results_results.close();
 	int a;
-	std::cin >> a;
+	scanf("%d", &a);
 }

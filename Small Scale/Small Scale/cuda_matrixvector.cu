@@ -1,7 +1,8 @@
 #include "cuda_matrixvector.cuh"
 
-#define BLOCK_DIM 64
-#define GRID_DIM 64
+#define BLOCK_DIM 2
+#define GRID_DIM 1
+
 template <unsigned int blockSize>
 __device__ void warpReduce(volatile double *sdata, unsigned int tid) {
 	if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
@@ -33,18 +34,40 @@ __global__ void device_cuda_csr_matrixvector(int num_rows, int* irp, int* ja, do
 }
 
 template <unsigned int blockSize>
-__global__ void device_cuda_ellpack_matrixvector(int num_rows,int  maxnzr, int* ja, double* as, double* x, double* y) {
-	
+__global__ void device_cuda_csr_matrixvector_simple(int num_rows, int* irp, int* ja, double* as, double* x, double* y) {
+	__shared__ double sdata[blockSize];
+	unsigned int tid = threadIdx.x;
+	sdata[tid] = 0;
+	for (int j = irp[blockIdx.x] + tid; j < irp[blockIdx.x + 1]; j += blockDim.x) {
+		sdata[tid] += as[j] * x[ja[j]];
+	}
+	__syncthreads();
+	if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+	if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+	if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+	if (tid < 32) warpReduce<blockSize>(sdata, tid);
+	if (tid == 0) y[blockIdx.x] = sdata[0];
+
+
+}
+
+
+template <unsigned int blockSize>
+__global__ void device_cuda_ellpack_matrixvector(int num_rows, int  maxnzr, int* ja, double* as, double* x, double* y) {
+
 	__shared__ double sdata[blockSize];
 	unsigned int tid = threadIdx.x;
 	unsigned int i_delta = maxnzr*gridDim.x;
 	unsigned int i_end = num_rows*maxnzr;
 	unsigned int I = blockIdx.x;
+
 	for (int i = maxnzr*blockIdx.x; i < i_end; i += i_delta) {
+
 		sdata[tid] = 0;
 		unsigned int j_end = i + maxnzr;
-		for (int j = tid+i; j < j_end; j+=blockDim.x) {
-		sdata[tid] = as[j] * x[ja[j]];
+
+		for (int j = tid + i; j < j_end; j += blockDim.x) {
+			sdata[tid] += as[j] * x[ja[j]];
 		}
 		__syncthreads();
 		if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
@@ -57,9 +80,33 @@ __global__ void device_cuda_ellpack_matrixvector(int num_rows,int  maxnzr, int* 
 
 }
 
-__host__ float cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
+template <unsigned int blockSize>
+__global__ void device_cuda_ellpack_matrixvector_simple(int num_rows, int  maxnzr, int* ja, double* as, double* x, double* y) {
 
+	__shared__ double sdata[blockSize];
+	unsigned int tid = threadIdx.x;
+
+
+	sdata[tid] = 0;
+	unsigned int j_end = maxnzr*blockIdx.x + maxnzr;
+
+	for (int j = tid + maxnzr*blockIdx.x; j < j_end; j += blockDim.x) {
+		sdata[tid] += as[j] * x[ja[j]];
+	}
+	__syncthreads();
+	if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+	if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+	if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+	if (tid < 32) warpReduce<blockSize>(sdata, tid);
+	if (tid == 0) y[blockIdx.x] = sdata[0];
+
+
+}
+
+__host__ float cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
+	cudaError_t error;
 	cudaEvent_t start, stop;
+	float time;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	int *d_ja, *d_irp;
@@ -69,7 +116,7 @@ __host__ float cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 	cudaMalloc((void**)&d_ja, matrix.nonzeros * sizeof(int));
 	cudaMalloc((void**)&d_as, matrix.nonzeros * sizeof(double));
 
-	cudaMalloc((void**)&d_y, matrix.collumns * sizeof(double));
+	cudaMalloc((void**)&d_y, matrix.rows * sizeof(double));
 	cudaMalloc((void**)&d_x, matrix.collumns * sizeof(double));
 
 	cudaMemcpy(d_irp, matrix.irp, matrix.irp_size * sizeof(int), cudaMemcpyHostToDevice);
@@ -78,63 +125,64 @@ __host__ float cuda_csr_matrixvector(csr_matrix matrix, double* x, double* y) {
 	cudaMemcpy(d_x, x, matrix.collumns * sizeof(double), cudaMemcpyHostToDevice);
 
 
-	cudaEventRecord(start);
-	device_cuda_csr_matrixvector<BLOCK_DIM> << <GRID_DIM, BLOCK_DIM >> > (matrix.rows, d_irp, d_ja, d_as, d_x, d_y); cudaEventRecord(stop, 0);
-	cudaEventRecord(stop);
+	cudaEventRecord(start,0);
+	device_cuda_csr_matrixvector<BLOCK_DIM> << <GRID_DIM, BLOCK_DIM >> > (matrix.rows, d_irp, d_ja, d_as, d_x, d_y);
 
+	//device_cuda_csr_matrixvector_simple<BLOCK_DIM> << <matrix.rows, BLOCK_DIM >> > (matrix.rows, d_irp, d_ja, d_as, d_x, d_y); cudaEventRecord(stop, 0);  
+
+	cudaEventRecord(stop,0);
 	cudaEventSynchronize(stop);
-	float time;
 	cudaEventElapsedTime(&time, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
 
-	cudaMemcpy(y, d_y, matrix.collumns * sizeof(double), cudaMemcpyDeviceToHost);
+	cudaMemcpy(y, d_y, matrix.rows * sizeof(double), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_ja);
 	cudaFree(d_irp);
 	cudaFree(d_as);
 	cudaFree(d_y);
 	cudaFree(d_x);
-	return time*1000;
+	return time * 1000;
 }
 
 __host__ float cuda_ellpack_matrixvector(ellpack_matrix matrix, double* x, double* y) {
-
+	cudaError_t error;
 	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
+	float time;
 	int *d_ja;
 	double *d_as, *d_x, *d_y;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
 
 	cudaMalloc((void**)&d_ja, matrix.maxnzr*matrix.rows * sizeof(int));
 	cudaMalloc((void**)&d_as, matrix.maxnzr*matrix.rows * sizeof(double));
 
-	cudaMalloc((void**)&d_y, matrix.collumns * sizeof(double));
+	cudaMalloc((void**)&d_y, matrix.rows * sizeof(double));
 	cudaMalloc((void**)&d_x, matrix.collumns * sizeof(double));
 
 	cudaMemcpy(d_ja, matrix.ja, matrix.maxnzr*matrix.rows * sizeof(int), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_as, matrix.as, matrix.maxnzr*matrix.rows * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_x, x, matrix.collumns * sizeof(double), cudaMemcpyHostToDevice);
-	
-	cudaEventRecord(start);
-	device_cuda_ellpack_matrixvector<BLOCK_DIM> << <GRID_DIM, BLOCK_DIM >> > (matrix.rows, matrix.maxnzr, d_ja, d_as, d_x, d_y); cudaEventRecord(stop, 0);
-	cudaEventRecord(stop);
+	cudaEventRecord(start, 0);
+	device_cuda_ellpack_matrixvector<BLOCK_DIM> << <GRID_DIM, BLOCK_DIM >> > (matrix.rows, matrix.maxnzr, d_ja, d_as, d_x, d_y);
+	//device_cuda_ellpack_matrixvector_simple<BLOCK_DIM> << <matrix.rows, BLOCK_DIM >> > (matrix.rows, matrix.maxnzr, d_ja, d_as, d_x, d_y);  
 
+	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
-	float time;
 	cudaEventElapsedTime(&time, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
 
 
-	cudaMemcpy(y, d_y, matrix.collumns * sizeof(double), cudaMemcpyDeviceToHost);
+	cudaMemcpy(y, d_y, matrix.rows * sizeof(double), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_ja);
 	cudaFree(d_as);
 	cudaFree(d_y);
 	cudaFree(d_x);
-	return time*1000;
+	return time * 1000;
 }
 
 /*

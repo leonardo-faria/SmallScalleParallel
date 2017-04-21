@@ -4,7 +4,7 @@
 class matrix {
 public:
 	matrix(std::string filename);
-	virtual ~matrix() = 0 {};
+	virtual ~matrix(){};
 	int rows;
 	int collumns;
 	int nonzeros;

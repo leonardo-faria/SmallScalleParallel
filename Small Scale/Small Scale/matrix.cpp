@@ -10,8 +10,8 @@ extern "C" {
 
 ellpack_matrix::ellpack_matrix(std::string filename) : matrix(filename) {
 	maxnzr = 0;
-	std::vector<std::vector<int>> work_ja = std::vector<std::vector<int>>();
-	std::vector<std::vector<double>> work_as = std::vector<std::vector<double>>();
+	std::vector<std::vector<int>> work_ja;
+	std::vector<std::vector<double>> work_as;
 	int col = 0;
 	for (size_t i = 0; i < coo_irp.size(); i++) {
 		col = coo_irp[i];
@@ -23,22 +23,21 @@ ellpack_matrix::ellpack_matrix(std::string filename) : matrix(filename) {
 			work_as[work_as.size() - 1].push_back(coo_as[j]);
 		}
 		if (maxnzr < work_ja[work_ja.size() - 1].size())
-			maxnzr = work_ja[work_ja.size() - 1].size();
+			maxnzr = (int) work_ja[work_ja.size() - 1].size();
 		i = j - 1;
-	}
-	for (size_t i = 0; i < work_ja.size(); i++) {
-		while (work_ja[i].size() < maxnzr) {
-			work_ja[i].push_back(work_ja[i][work_ja[i].size() - 1]);
-			work_as[i].push_back(0);
-		}
 	}
 
 	ja = (int*)malloc(sizeof(int)*work_ja.size()*maxnzr);
 	as = (double*)malloc(sizeof(double)*work_as.size()*maxnzr);
 	for (size_t i = 0; i < work_ja.size(); i++) {
 		for (size_t j = 0; j < maxnzr; j++) {
-			ja[i*maxnzr +j] = work_ja[i][j];
-			as[i*maxnzr + j] = work_as[i][j];
+			if (j < work_ja[i].size()) {
+				ja[i*maxnzr + j] = work_ja[i][j];
+				as[i*maxnzr + j] = work_as[i][j];
+			} else {
+				ja[i*maxnzr + j] = ja[i*maxnzr + j - 1];
+				as[i*maxnzr + j] = 0;
+			}
 		}
 		work_ja[i].clear();
 		work_as[i].clear();
@@ -60,27 +59,25 @@ ellpack_matrix::ellpack_matrix(std::string filename) : matrix(filename) {
 }
 
 csr_matrix::csr_matrix(std::string filename) : matrix(filename) {
-
 	work_irp = std::vector<int>();
 	work_irp.push_back(0);
-	for (size_t i = 0; i < coo_irp.size(); i++) {
+	for (int i = 0; i < coo_irp.size(); i++) {
 		int col = coo_irp[i];
-		size_t j;
+		int j;
 		for (j = i; j < coo_irp.size() && coo_irp[j] == col; j++);
 		if (j < coo_irp.size())
 			work_irp.push_back(j);
 		i = j - 1;
 	}
-	work_irp.push_back(coo_irp.size());
+	work_irp.push_back((int) coo_irp.size());
 
-	irp_size = work_irp.size();
+	irp_size = (int)work_irp.size();
 	irp = (int*)malloc(sizeof(int)*work_irp.size());
 	ja = (int*)malloc(sizeof(int)*coo_ja.size());
 	as = (double*)malloc(sizeof(double)*coo_as.size());
 	std::copy(work_irp.begin(), work_irp.end(), irp);
 	std::copy(coo_ja.begin(), coo_ja.end(), ja);
 	std::copy(coo_as.begin(), coo_as.end(), as);
-
 	coo_irp.clear();
 	coo_as.clear();
 	coo_ja.clear();
@@ -111,6 +108,7 @@ matrix::matrix(std::string filename) {
 	coo_as = std::vector<double>();
 	int temp_irp, temp_ja;
 	double temp_as;
+
 	for (int i = 0; i < nonzeros; i++) {
 		fscanf(f, "%d %d %lg\n", &temp_irp, &temp_ja, &temp_as);
 
@@ -130,12 +128,13 @@ matrix::matrix(std::string filename) {
 		}
 	}
 	if (mm_is_hermitian(matcode) || mm_is_symmetric(matcode) || mm_is_skew(matcode))
-		nonzeros = coo_ja.size();
+		nonzeros = (int)coo_ja.size();
 	work_irp = std::vector<int>(coo_irp.size());
 	work_ja = std::vector<int>(coo_ja.size());
 	work_as = std::vector<double>(coo_as.size());
 
-	BottomUpMergeSort(coo_irp.size());
+	BottomUpMergeSort((int)coo_irp.size());
+
 	work_irp.clear();
 	work_as.clear();
 	work_ja.clear();
@@ -164,6 +163,8 @@ void matrix::BottomUpMergeSort(int n) {
 void matrix::BottomUpMerge(int iLeft, int iRight, int iEnd) {
 	int i = iLeft, j = iRight;
 	// While there are elements in the left or right runs...
+
+
 	for (int k = iLeft; k < iEnd; k++) {
 		// If left run head exists and is <= existing right run head.
 		if (i < iRight && (j >= iEnd || coo_irp[i] < coo_irp[j] || (coo_irp[i] == coo_irp[j] && coo_ja[i] <= coo_ja[j]))) {

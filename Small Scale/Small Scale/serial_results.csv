@@ -1,2 +1,2 @@
-Matrix,nonzeros,collumns,rows,csr GFLOPS,ell GFLOPS,
-olm1000,3996,1000,1000,inf,inf,
+Matrix,nonzeros,collumns,rows,csr,ell,Max error,Total error
+cage4,49,9,9,inf,inf,0,0,
