@@ -10,8 +10,8 @@ extern "C" {
 
 ellpack_matrix::ellpack_matrix(std::string filename) : matrix(filename) {
 	maxnzr = 0;
-	std::vector<std::vector<int>> work_ja;
-	std::vector<std::vector<double>> work_as;
+	std::vector<std::vector<int> > work_ja;
+	std::vector<std::vector<double> > work_as;
 	int col = 0;
 	for (size_t i = 0; i < coo_irp.size(); i++) {
 		col = coo_irp[i];
@@ -47,8 +47,8 @@ ellpack_matrix::ellpack_matrix(std::string filename) : matrix(filename) {
 	}
 	work_ja.clear();
 	work_as.clear();
-	std::vector<std::vector<int>>().swap(work_ja);
-	std::vector<std::vector<double>>().swap(work_as);
+	std::vector<std::vector<int> >().swap(work_ja);
+	std::vector<std::vector<double> >().swap(work_as);
 
 	coo_irp.clear();
 	coo_as.clear();
