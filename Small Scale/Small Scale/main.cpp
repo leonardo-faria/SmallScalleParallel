@@ -4,7 +4,7 @@
 #include "serial_matrixvector.h"
 #include "cuda_matrixvector.cuh"
 #include "matrix.h"
-
+#include <math.h>
 #include <time.h>
 #include <sstream> 
 
