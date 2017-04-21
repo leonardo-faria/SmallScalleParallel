@@ -92,7 +92,7 @@ matrix::matrix(std::string filename) {
 	MM_typecode matcode;
 	FILE *f;
 	if ((f = fopen(filename.c_str(), "r")) == NULL)
-		throw std::exception(((std::string) ("Unable to open file " + filename)).c_str());
+		throw std::runtime_error(((std::string) ("Unable to open file " + filename)).c_str());
 	if (mm_read_banner(f, &matcode) != 0) {
 		throw std::runtime_error("Could not process Matrix Market banner.\n");
 	}
