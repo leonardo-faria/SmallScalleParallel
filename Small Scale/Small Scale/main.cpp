@@ -48,7 +48,7 @@ void error(double* a1, double* a2, double size, double& max, double& total) {
 	double temp_total = 0;
 	double error;
 	for (size_t i = 0; i < size; i++) {
-		error = abs((a1[i] - a2[i]));
+		error = fabs((a1[i] - a2[i]));
 		if (temp_max < error)
 			temp_max = error;
 		temp_total += error;
