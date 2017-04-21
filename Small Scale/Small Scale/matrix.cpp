@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <iostream>
+#include  <stdexcept>
 extern "C" {
 #include "mmio.h"
 }
